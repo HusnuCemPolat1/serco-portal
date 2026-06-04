@@ -143,11 +143,11 @@ function loadMyTickets(){
   var d=getDb();if(!d||!currentUser)return;
   d.from('tickets').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).then(function(r){
     myTickets=r.data||[];
-    document.getElementById('stat-total').textContent=myTickets.length;
-    document.getElementById('stat-inprogress').textContent=myTickets.filter(function(t){return t.status==='In Progress';}).length;
-    document.getElementById('stat-completed').textContent=myTickets.filter(function(t){return t.status==='Completed';}).length;
-    document.getElementById('stat-pending').textContent=myTickets.filter(function(t){return t.status==='Pending';}).length;
-    document.getElementById('my-tickets-count').textContent=myTickets.length;
+    if(document.getElementById('stat-total')) document.getElementById('stat-total').textContent=myTickets.length;
+    if(document.getElementById('stat-inprogress')) document.getElementById('stat-inprogress').textContent=myTickets.filter(function(t){return t.status==='In Progress';}).length;
+    if(document.getElementById('stat-completed')) document.getElementById('stat-completed').textContent=myTickets.filter(function(t){return t.status==='Completed';}).length;
+    if(document.getElementById('stat-pending')) document.getElementById('stat-pending').textContent=myTickets.filter(function(t){return t.status==='Pending';}).length;
+    if(document.getElementById('my-tickets-count')) document.getElementById('my-tickets-count').textContent=myTickets.length;
     renderMyTickets(currentFilter);
   });
 }
