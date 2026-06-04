@@ -1,3 +1,8 @@
+bash
+
+cat /mnt/user-data/outputs/serco_portal_live.html
+Output
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -73,7 +78,6 @@ function afterLogin(user){
     var name=r.data?r.data.first_name+' '+r.data.last_name:user.email;
     document.getElementById('header-username').textContent=name;
     if(r.data){document.getElementById('t-name').value=name;document.getElementById('t-jobtitle').value=r.data.job_title||'';}
-    if(ADMIN_EMAILS.includes(user.email))document.getElementById('nav-admin').style.display='flex';
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
     loadMyTickets();
@@ -88,7 +92,6 @@ function switchTab(tab){
   document.getElementById('nav-'+tab).classList.add('active');
   document.getElementById('panel-'+tab).classList.add('active');
   if(tab==='tickets')loadMyTickets();
-  if(tab==='admin')loadAdminTickets();
 }
 
 function selUrgency(el){document.querySelectorAll('.urgency-btn').forEach(function(b){b.classList.remove('sel');});el.classList.add('sel');}
@@ -97,9 +100,6 @@ function tToggleCountry(sel){var g=document.getElementById('t-country-group');if
 function openMod(id){var o=document.getElementById(id);o.classList.add('open');setTimeout(function(){var f=o.querySelectorAll('button');if(f.length)f[0].focus();},80);}
 function closeMod(id){document.getElementById(id).classList.remove('open');}
 function filterMyTickets(f,el){document.querySelectorAll('.filter-pill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderMyTickets(f);}
-function loadAdminTickets(){var d=getDb();if(!d)return;var sF=document.getElementById('admin-filter-status').value;var rF=document.getElementById('admin-filter-region').value;var q=d.from('tickets').select('*, profiles(first_name, last_name, email)').order('created_at',{ascending:false});if(sF)q=q.eq('status',sF);if(rF)q=q.eq('region',rF);q.then(function(r){var tbody=document.getElementById('admin-tickets-body');var data=r.data||[];if(!data.length){tbody.innerHTML='<tr><td colspan="10" class="empty-tickets">No tickets found.</td></tr>';return;}tbody.innerHTML=data.map(function(t){var sc=t.status==='In Progress'?'badge-inprogress':t.status==='Completed'?'badge-completed':'badge-pending';var uc=UC[t.urgency]||'#3d4961';var date=new Date(t.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});var sub=t.profiles?t.profiles.first_name+' '+t.profiles.last_name:t.submitter_name;var wl=t.work_log_url?'<a href="'+t.work_log_url+'" target="_blank" style="font-size:11px;font-weight:600;color:var(--purple)">Download</a>':'<input type="text" placeholder="Paste URL" style="width:130px;padding:4px 8px;border:1px solid var(--border-mid);border-radius:5px;font-size:11px" onblur="saveWorkLog(\''+t.id+'\',this.value)">';return '<tr><td><span class="ref-code">'+t.ref+'</span></td><td style="font-size:12px">'+sub+'</td><td>'+date+'</td><td>'+t.region+(t.country?' - '+t.country:'')+'</td><td style="font-size:12px">'+(t.contract_name||'-')+'</td><td><span class="type-tag">'+t.request_type+'</span></td><td><span style="font-size:12px;font-weight:600;color:'+uc+'">'+t.urgency+'</span></td><td><span style="font-size:12px;color:'+(t.recruiter_added==='Yes'?'var(--green)':'var(--red)')+'">'+t.recruiter_added+'</span></td><td><select class="status-select" onchange="updateTicketStatus(\''+t.id+'\',this.value)"><option'+(t.status==='Pending'?' selected':'')+'>Pending</option><option'+(t.status==='In Progress'?' selected':'')+'>In Progress</option><option'+(t.status==='Completed'?' selected':'')+'>Completed</option></select></td><td>'+wl+'</td></tr>';}).join('');});}
-function updateTicketStatus(id,status){var d=getDb();if(d)d.from('tickets').update({status:status}).eq('id',id).then(function(){showToast('Status updated.');});}
-function saveWorkLog(id,url){var d=getDb();if(!d||!url.trim())return;d.from('tickets').update({work_log_url:url.trim()}).eq('id',id).then(function(){showToast('Work log saved.');loadAdminTickets();});}
 
 function genRef(){return 'SR-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*900000)+100000);}
 
@@ -165,7 +165,10 @@ function renderMyTickets(filter){
     var sc=t.status==='In Progress'?'badge-inprogress':t.status==='Completed'?'badge-completed':'badge-pending';
     var uc=UC[t.urgency]||'#3d4961';
     var date=new Date(t.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-    var wl=(t.status==='In Progress'||t.status==='Completed')?(t.work_log_url?'<a href="'+t.work_log_url+'" target="_blank" style="font-size:11px;font-weight:600;color:var(--purple);text-decoration:none;background:var(--surface-3);border:1px solid var(--border);padding:4px 10px;border-radius:6px">Download</a>':'<span style="font-size:11px;color:var(--text-muted)">Pending upload</span>'):'<span style="color:var(--text-muted)">&#8212;</span>';
+    var wlUrl = t.work_log_url || t.worklog_url || t.work_log || null;
+    var wl = wlUrl
+      ? '<a href="'+wlUrl+'" target="_blank" style="font-size:11px;font-weight:600;color:var(--purple);text-decoration:none;background:var(--surface-3);border:1px solid var(--border);padding:4px 10px;border-radius:6px">Download</a>'
+      : '<span style="font-size:11px;color:var(--text-muted)">Pending</span>';
     return '<tr><td><span class="ref-code">'+t.ref+'</span></td><td>'+date+'</td><td>'+t.region+(t.country?' &#8212; '+t.country:'')+'</td><td>'+(t.contract_name||'&#8212;')+'</td><td><span class="type-tag">'+t.request_type+'</span></td><td><span style="font-size:12px;font-weight:600;color:'+uc+'">'+t.urgency+'</span></td><td><span class="badge '+sc+'"><span class="badge-dot"></span>'+t.status+'</span></td><td>'+wl+'</td></tr>';
   }).join('');
 }
@@ -538,11 +541,6 @@ tbody tr:hover{background:var(--surface-3)}
     My tickets
     <span class="tab-count" id="my-tickets-count">0</span>
   </div>
-<div class="nav-tab" id="nav-admin" onclick="switchTab('admin')" style="display:none">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-    All tickets
-    <span class="admin-badge">ADMIN</span>
-  </div>
 </nav>
 
 <!-- ══════════════════════════════════════════════════
@@ -707,14 +705,6 @@ tbody tr:hover{background:var(--surface-3)}
         <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value" id="stat-completed">0</div><div class="stat-sub">This quarter</div></div>
         <div class="stat-card"><div class="stat-label">Pending review</div><div class="stat-value" id="stat-pending">0</div><div class="stat-sub">Awaiting triage</div></div>
       </div>
-      <div class="tickets-header">
-        <div class="tickets-filters">
-          <div class="filter-pill active" onclick="filterMyTickets('all',this)">All</div>
-          <div class="filter-pill" onclick="filterMyTickets('In Progress',this)">In progress</div>
-          <div class="filter-pill" onclick="filterMyTickets('Completed',this)">Completed</div>
-          <div class="filter-pill" onclick="filterMyTickets('Pending',this)">Pending</div>
-        </div>
-      </div>
       <div class="table-wrap">
         <table><thead><tr><th>Reference</th><th>Submitted</th><th>Region</th><th>Contract</th><th>Request type</th><th>Urgency</th><th>Status</th><th>Completed Work Log</th></tr></thead>
         <tbody id="my-tickets-body"></tbody></table>
@@ -726,10 +716,6 @@ tbody tr:hover{background:var(--surface-3)}
 <!-- ══════════════════════════════════════════════════
      TAB: TPOOL+
      ══════════════════════════════════════════════════ -->
-
-<div class="tab-panel" id="panel-admin">
-  <div class="centred"><div class="content-wrap">
-    <div class="page-title">All tickets &mdash; Admin view</div>
     <div class="page-desc">View and manage all tickets submitted by the team.</div>
     <div class="admin-filter-bar">
       <select class="admin-select" id="admin-filter-status" onchange="loadAdminTickets()"><option value="">All statuses</option><option>Pending</option><option>In Progress</option><option>Completed</option></select>
